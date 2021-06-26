@@ -1,0 +1,144 @@
+{
+  "Comment": "A Hello World example demonstrating various state types of the Amazon States Language",
+  "StartAt": "Make Request - Get All Users",
+  "States": {
+    "Make Request - Get All Users": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:00000000000:function:request-make:$LATEST",
+        "Payload": {
+          "options": {
+            "host": "jsonplaceholder.typicode.com",
+            "port": 443,
+            "path": "/users",
+            "method": "GET"
+          }
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Pass"
+    },
+    "Pass": {
+      "Type": "Pass",
+      "Next": "Parallel",
+      "InputPath": "$.body"
+    },
+    "Parallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Get First User",
+          "States": {
+            "Get First User": {
+              "Type": "Pass",
+              "Next": "Get First User Details",
+              "InputPath": "$.[0]"
+            },
+            "Get First User Details": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "OutputPath": "$.Payload",
+              "Parameters": {
+                "FunctionName": "arn:aws:lambda:us-east-1:00000000000:function:request-make:$LATEST",
+                "Payload": {
+                  "options": {
+                    "host": "jsonplaceholder.typicode.com",
+                    "port": 443,
+                    "path": "/users/",
+                    "path2.$": "$.id",
+                    "method": "GET"
+                  }
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 6,
+                  "BackoffRate": 2
+                }
+              ],
+              "Next": "Send Message to Queue"
+            },
+            "Send Message to Queue": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sqs:sendMessage",
+              "Parameters": {
+                "MessageBody.$": "$",
+                "QueueUrl": "https://sqs.us-east-1.amazonaws.com/00000000000/step-function"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Get Second User",
+          "States": {
+            "Get Second User": {
+              "Type": "Pass",
+              "Next": "Get Second User Details",
+              "InputPath": "$.[1]"
+            },
+            "Get Second User Details": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "OutputPath": "$.Payload",
+              "Parameters": {
+                "FunctionName": "arn:aws:lambda:us-east-1:00000000000:function:request-make:$LATEST",
+                "Payload": {
+                  "options": {
+                    "host": "jsonplaceholder.typicode.com",
+                    "port": 443,
+                    "path": "/users/",
+                    "path2.$": "$.id",
+                    "method": "GET"
+                  }
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 6,
+                  "BackoffRate": 2
+                }
+              ],
+              "Next": "SQS SendMessage"
+            },
+            "SQS SendMessage": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sqs:sendMessage",
+              "Parameters": {
+                "MessageBody.$": "$",
+                "QueueUrl": "https://sqs.us-east-1.amazonaws.com/00000000000/step-function"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "End": true
+    }
+  }
+}
