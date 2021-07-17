@@ -1,0 +1,58 @@
+{
+  "StartAt": "Wait",
+  "TimeoutSeconds": 3600,
+  "States": {
+    "Wait": {
+      "Type": "Wait",
+      "Seconds": 2,
+      "Next": "SQS SendMessage"
+    },
+    "SQS SendMessage": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl": "https://sqs.us-east-1.amazonaws.com/198739552002/step-function",
+        "MessageBody": {
+          "ExecutionContext.$": "$$",
+          "status": "Approved",
+          "options": {
+            "port": "443",
+            "host.$": "$.options.host",
+            "path.$": "$.options.path",
+            "method.$": "$.options.method"
+          }
+        }
+      },
+      "Next": "ManualApprovalChoiceState"
+    },
+    "ManualApprovalChoiceState": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "StringEquals": "Approved",
+          "Next": "ApprovedPassState"
+        },
+        {
+          "Variable": "$.status",
+          "StringEquals": "Rejected",
+          "Next": "RejectedPassState"
+        }
+      ]
+    },
+    "ApprovedPassState": {
+      "Type": "Pass",
+      "Next": "Success"
+    },
+    "Success": {
+      "Type": "Succeed"
+    },
+    "RejectedPassState": {
+      "Type": "Pass",
+      "Next": "Fail"
+    },
+    "Fail": {
+      "Type": "Fail"
+    }
+  }
+}
